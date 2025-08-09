@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Career Recommender</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.4.0/dist/tf.min.js"></script>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f4f4;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+.container {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    max-width: 600px;
+    width: 100%;
+}
+h1 {
+    text-align: center;
+}
+.question {
+    margin-top: 10px;
+}
+select, button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+button {
+    background: #4CAF50;
+    color: white;
+    cursor: pointer;
+}
+button:hover {
+    background: #45a049;
+}
+.result {
+    margin-top: 15px;
+    padding: 10px;
+    background: #eef;
+    border-radius: 5px;
+}
+.hidden {
+    display: none;
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+    <!-- Step 1: Stream Selection -->
+    <div id="step1">
+        <h1>Select Your Higher Secondary Stream</h1>
+        <p>Choose the subject combination you studied in your 11th and 12th grades. This will determine which degree programs you are eligible for.</p>
+        <select id="stream">
+            <option value="">-- Select Your Stream --</option>
+            <option value="bio-maths">Bio-Maths (Biology + Mathematics)</option>
+            <option value="computer-science">Computer Science</option>
+            <option value="commerce">Commerce</option>
+            <option value="arts">Arts / Humanities</option>
+        </select>
+        <button onclick="checkEligibility()">Next</button>
+        <div id="eligibility" class="result hidden"></div>
+    </div>
+
+    <!-- Step 2: Quiz -->
+    <div id="step2" class="hidden">
+        <h1>Skill & Interest Assessment Quiz</h1>
+        <p>Answer the following questions honestly. The AI will use your answers to suggest a career path that matches your strengths, interests, and eligibility.</p>
+
+        <div class="question">
+            <label>Do you enjoy working with numbers and data?</label>
+            <select id="q1">
+                <option value="">-- Select --</option>
+                <option value="1">Yes, I love analyzing data</option>
+                <option value="0">No, I prefer other activities</option>
+            </select>
+        </div>
+
+        <div class="question">
+            <label>Do you like solving technical problems and understanding how systems work?</label>
+            <select id="q2">
+                <option value="">-- Select --</option>
+                <option value="1">Yes, I enjoy technical challenges</option>
+                <option value="0">No, I’m not into technical problem-solving</option>
+            </select>
+        </div>
+
+        <div class="question">
+            <label>Do you enjoy helping people directly, for example in healthcare or social work?</label>
+            <select id="q3">
+                <option value="">-- Select --</option>
+                <option value="1">Yes, helping people is my passion</option>
+                <option value="0">No, I prefer working behind the scenes</option>
+            </select>
+        </div>
+
+        <div class="question">
+            <label>Do you prefer creative work such as writing, designing, or artistic activities?</label>
+            <select id="q4">
+                <option value="">-- Select --</option>
+                <option value="1">Yes, I’m very creative</option>
+                <option value="0">No, creativity is not my strength</option>
+            </select>
+        </div>
+
+        <div class="question">
+            <label>Are you comfortable working with computers, programming, or IT systems?</label>
+            <select id="q5">
+                <option value="">-- Select --</option>
+                <option value="1">Yes, I’m good with computers</option>
+                <option value="0">No, I’m not very tech-savvy</option>
+            </select>
+        </div>
+
+        <button onclick="recommend()">Get AI Recommendation</button>
+    </div>
+
+    <!-- Step 3: Result -->
+    <div id="step3" class="hidden">
+        <h1>AI Career Recommendation</h1>
+        <div id="output" class="result"></div>
+        <button onclick="restart()">Start Over</button>
+    </div>
+
+</div>
+
+<script>
+let userStream = "";
+
+// Step 1: Eligibility check
+function checkEligibility() {
+    const stream = document.getElementById("stream").value;
+    const eligibilityDiv = document.getElementById("eligibility");
+    userStream = stream;
+
+    if (!stream) {
+        eligibilityDiv.classList.remove("hidden");
+        eligibilityDiv.innerHTML = "⚠️ Please select your stream before continuing.";
+        return;
+    }
+
+    let blocked = [];
+    if (stream === "computer-science") blocked.push("MBBS / Nursing");
+    if (stream === "commerce") blocked.push("Engineering", "MBBS / Nursing");
+    if (stream === "arts") blocked.push("Engineering", "MBBS / Nursing", "B.Com");
+
+    let allowed = ["Engineering", "MBBS / Nursing", "B.Com", "BA", "BBA", "BCA"];
+    allowed = allowed.filter(c => !blocked.includes(c));
+
+    eligibilityDiv.classList.remove("hidden");
+    eligibilityDiv.innerHTML = `
+        <h3>Eligibility Based on Your Stream:</h3>
+        <p><b>Allowed Courses:</b> ${allowed.join(", ")}</p>
+        <p><b>Not Eligible For:</b> ${blocked.length ? blocked.join(", ") : "None"}</p>
+        <p>The AI will now take you to the skill assessment quiz to further refine the career recommendation.</p>
+    `;
+
+    setTimeout(() => {
+        document.getElementById("step1").classList.add("hidden");
+        document.getElementById("step2").classList.remove("hidden");
+    }, 2000);
+}
+
+// Step 2: Recommendation logic
+function recommend() {
+    let answers = [
+        parseInt(document.getElementById("q1").value || 0),
+        parseInt(document.getElementById("q2").value || 0),
+        parseInt(document.getElementById("q3").value || 0),
+        parseInt(document.getElementById("q4").value || 0),
+        parseInt(document.getElementById("q5").value || 0)
+    ];
+
+    if (answers.includes(NaN)) {
+        alert("⚠️ Please answer all questions.");
+        return;
+    }
+
+    let scores = {
+        engineering: answers[0] + answers[1] + answers[4],
+        medical: answers[2] + answers[1],
+        arts: answers[3] + answers[2],
+        business: answers[0] + answers[3]
+    };
+
+    if (userStream === "computer-science") delete scores.medical;
+    if (userStream === "commerce") { delete scores.engineering; delete scores.medical; }
+    if (userStream === "arts") { delete scores.engineering; delete scores.medical; delete scores.business; }
+
+    let bestCourse = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
+
+    let courseInfo = {
+        engineering: {
+            name: "B.Tech / BE (Engineering)",
+            jobs: "Software Engineer, Data Scientist, Mechanical Engineer, Civil Engineer",
+            salary: "₹4-12 LPA",
+            description: "Engineering develops problem-solving and technical skills. You'll design, build, and improve systems or products."
+        },
+        medical: {
+            name: "MBBS / Nursing (Medical Field)",
+            jobs: "Doctor, Surgeon, Nurse, Physiotherapist",
+            salary: "₹5-20 LPA",
+            description: "The medical field focuses on diagnosing, treating, and preventing illnesses. It requires compassion, patience, and scientific knowledge."
+        },
+        arts: {
+            name: "BA in Arts / Humanities",
+            jobs: "Journalist, Historian, Designer, Teacher",
+            salary: "₹2-6 LPA",
+            description: "Arts programs focus on creativity, critical thinking, and cultural understanding, preparing you for diverse career paths."
+        },
+        business: {
+            name: "BBA / B.Com (Business & Commerce)",
+            jobs: "Business Analyst, Accountant, Marketing Manager, Entrepreneur",
+            salary: "₹3-10 LPA",
+            description: "Business degrees teach management, finance, and marketing skills, opening doors to corporate and entrepreneurial careers."
+        }
+    };
+
+    document.getElementById("step2").classList.add("hidden");
+    document.getElementById("step3").classList.remove("hidden");
+
+    document.getElementById("output").innerHTML = `
+        <h3>🎯 Recommended Course:</h3>
+        <p><b>${courseInfo[bestCourse].name}</b></p>
+        <h4>💼 Possible Jobs:</h4>
+        <p>${courseInfo[bestCourse].jobs}</p>
+        <h4>💰 Salary Range:</h4>
+        <p>${courseInfo[bestCourse].salary}</p>
+        <h4>📖 About This Path:</h4>
+        <p>${courseInfo[bestCourse].description}</p>
+        <p><b>Why This Recommendation?</b> Based on your interests and the eligibility from your higher secondary stream, this course is the best fit for you.</p>
+    `;
+}
+
+function restart() {
+    document.getElementById("step3").classList.add("hidden");
+    document.getElementById("step1").classList.remove("hidden");
+    document.getElementById("stream").value = "";
+}
+</script>
+</body>
+</html>
