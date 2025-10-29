@@ -1,253 +1,227 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Career Recommender</title>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.4.0/dist/tf.min.js"></script>
-<style>
-body {
-    font-family: Arial, sans-serif;
-    background: #f4f4f4;
-    margin: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-}
-.container {
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    max-width: 600px;
-    width: 100%;
-}
-h1 {
-    text-align: center;
-}
-.question {
-    margin-top: 10px;
-}
-select, button {
-    width: 100%;
-    padding: 10px;
-    margin-top: 5px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-}
-button {
-    background: #4CAF50;
-    color: white;
-    cursor: pointer;
-}
-button:hover {
-    background: #45a049;
-}
-.result {
-    margin-top: 15px;
-    padding: 10px;
-    background: #eef;
-    border-radius: 5px;
-}
-.hidden {
-    display: none;
-}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Course Recommendation System</title>
+  <style>
+    :root{--bg:#f6fafb;--card:#fff;--accent:#1565c0}
+    body{font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;margin:0;background:var(--bg);color:#111}
+    header{background:linear-gradient(90deg,#0d47a1 0%, #1976d2 100%);color:#fff;padding:28px 20px;text-align:center}
+    .container{max-width:980px;margin:24px auto;padding:0 18px}
+    .card{background:var(--card);padding:18px;border-radius:12px;box-shadow:0 6px 18px rgba(8,35,62,0.06);margin-bottom:18px}
+    button{background:var(--accent);color:#fff;border:0;padding:10px 14px;border-radius:8px;cursor:pointer}
+    .grid{display:grid;grid-template-columns:1fr 320px;gap:18px}
+    label{display:block;margin:8px 0;font-weight:600}
+    select,input[type=text]{width:100%;padding:10px;border-radius:8px;border:1px solid #e6eef8}
+    ul{padding-left:18px}
+    .chip{display:inline-block;padding:6px 10px;border-radius:999px;border:1px solid #e6eef8;margin:6px 6px 0 0}
+    .college{border-left:4px solid #1976d2;padding:12px;margin:10px 0;border-radius:6px;background:#fcfeff}
+    footer{text-align:center;padding:14px;color:#666}
+    @media(max-width:880px){.grid{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
-<div class="container">
+  <header>
+    <h1>Recommendation System for Course Selection</h1>
+    <p>Helps 11th/12th students pick undergraduate courses, view local colleges & fees, career options and online preparatory courses.</p>
+  </header>
 
-    <!-- Step 1: Stream Selection -->
-    <div id="step1">
-        <h1>Select Your Higher Secondary Stream</h1>
-        <p>Choose the subject combination you studied in your 11th and 12th grades. This will determine which degree programs you are eligible for.</p>
-        <select id="stream">
-            <option value="">-- Select Your Stream --</option>
-            <option value="bio-maths">Bio-Maths (Biology + Mathematics)</option>
-            <option value="computer-science">Computer Science</option>
-            <option value="commerce">Commerce</option>
-            <option value="arts">Arts / Humanities</option>
+  <main class="container">
+    <div id="page-home" class="card">
+      <h2>Welcome</h2>
+      <p>This tool recommends undergraduate courses based on the higher-secondary (11th & 12th) stream you studied.</p>
+      <button id="startBtn">Start recommendation</button>
+    </div>
+
+    <div id="page-question" class="card" style="display:none">
+      <h2>Which subject did you study in 11th & 12th?</h2>
+      <label for="stream">Select stream</label>
+      <select id="stream">
+        <option value="">-- choose --</option>
+        <option value="biology">Biology (PCB)</option>
+        <option value="computer">Computer Science (PC/PCs)</option>
+        <option value="commerce">Commerce (Account/Commerce)</option>
+        <option value="maths">Maths (PCM)</option>
+        <option value="arts">Arts / Humanities</option>
+      </select>
+      <div style="margin-top:12px">
+        <label for="city">Preferred city to study (we'll show nearby colleges)</label>
+        <select id="city">
+          <option value="kanyakumari">Kanyakumari / Nagercoil</option>
+          <option value="tirunelveli">Tirunelveli</option>
+          <option value="coimbatore">Coimbatore</option>
         </select>
-        <button onclick="checkEligibility()">Next</button>
-        <div id="eligibility" class="result hidden"></div>
+      </div>
+      <div style="margin-top:12px">
+        <button id="nextToResults">See recommended courses</button>
+      </div>
     </div>
 
-    <!-- Step 2: Quiz -->
-    <div id="step2" class="hidden">
-        <h1>Skill & Interest Assessment Quiz</h1>
-        <p>Answer the following questions honestly. The AI will use your answers to suggest a career path that matches your strengths, interests, and eligibility.</p>
+    <div id="page-results" class="card" style="display:none">
+      <h2>Recommended & Restricted Courses</h2>
+      <div class="grid">
+        <div>
+          <h3>For your stream: <span id="selStream" style="color:#1976d2"></span></h3>
+          <div id="recList"></div>
+          <h4>If you have doubts — suggestions</h4>
+          <div id="suggestions"></div>
 
-        <div class="question">
-            <label>Do you enjoy working with numbers and data?</label>
-            <select id="q1">
-                <option value="">-- Select --</option>
-                <option value="1">Yes, I love analyzing data</option>
-                <option value="0">No, I prefer other activities</option>
-            </select>
+          <h3 style="margin-top:12px">Careers & Future Opportunities</h3>
+          <div id="careers"></div>
+
+          <h3 style="margin-top:12px">Recommended online courses to start during 11th/12th</h3>
+          <ul id="onlineCourses"></ul>
         </div>
 
-        <div class="question">
-            <label>Do you like solving technical problems and understanding how systems work?</label>
-            <select id="q2">
-                <option value="">-- Select --</option>
-                <option value="1">Yes, I enjoy technical challenges</option>
-                <option value="0">No, I’m not into technical problem-solving</option>
-            </select>
-        </div>
-
-        <div class="question">
-            <label>Do you enjoy helping people directly, for example in healthcare or social work?</label>
-            <select id="q3">
-                <option value="">-- Select --</option>
-                <option value="1">Yes, helping people is my passion</option>
-                <option value="0">No, I prefer working behind the scenes</option>
-            </select>
-        </div>
-
-        <div class="question">
-            <label>Do you prefer creative work such as writing, designing, or artistic activities?</label>
-            <select id="q4">
-                <option value="">-- Select --</option>
-                <option value="1">Yes, I’m very creative</option>
-                <option value="0">No, creativity is not my strength</option>
-            </select>
-        </div>
-
-        <div class="question">
-            <label>Are you comfortable working with computers, programming, or IT systems?</label>
-            <select id="q5">
-                <option value="">-- Select --</option>
-                <option value="1">Yes, I’m good with computers</option>
-                <option value="0">No, I’m not very tech-savvy</option>
-            </select>
-        </div>
-
-        <button onclick="recommend()">Get AI Recommendation</button>
+        <aside>
+          <h4>Local colleges (selected city)</h4>
+          <div id="colleges"></div>
+        </aside>
+      </div>
+      <div style="margin-top:12px">
+        <label for="chooseCourse">If you pick a course, choose it here to see tailored online subjects:</label>
+        <select id="chooseCourse"><option value="">-- pick course --</option></select>
+        <div id="tailored" style="margin-top:10px"></div>
+      </div>
     </div>
 
-    <!-- Step 3: Result -->
-    <div id="step3" class="hidden">
-        <h1>AI Career Recommendation</h1>
-        <div id="output" class="result"></div>
-        <button onclick="restart()">Start Over</button>
+    <div id="page-final" class="card" style="display:none">
+      <h2>Good luck!</h2>
+      <p>Use this page to note your choices. You can copy details or press Restart to try again.</p>
+      <button id="restart">Restart</button>
     </div>
 
-</div>
+    <footer class="card">This static demo includes sample college fee data collected from public sources (see assistant message for references).</footer>
+  </main>
 
-<script>
-let userStream = "";
+  <script>
+    // Basic single-file app (no backend) — all data client-side so it can be pushed to GitHub as a static page.
+    const startBtn = document.getElementById('startBtn')
+    const pageHome = document.getElementById('page-home')
+    const pageQuestion = document.getElementById('page-question')
+    const pageResults = document.getElementById('page-results')
+    const pageFinal = document.getElementById('page-final')
 
-// Step 1: Eligibility check
-function checkEligibility() {
-    const stream = document.getElementById("stream").value;
-    const eligibilityDiv = document.getElementById("eligibility");
-    userStream = stream;
+    startBtn.onclick = ()=>{ pageHome.style.display='none'; pageQuestion.style.display='block' }
 
-    if (!stream) {
-        eligibilityDiv.classList.remove("hidden");
-        eligibilityDiv.innerHTML = "⚠️ Please select your stream before continuing.";
-        return;
+    const streamToCourses = {
+      biology: {
+        recommended: ['B.Sc Zoology','B.Sc Botany','B.Sc Microbiology','BPT (Physiotherapy)','B.Pharm','B.Sc Agriculture','B.Sc Biochemistry'],
+        restricted: ['B.E (pure engineering branches with heavy physics/math) — may need bridge courses','B.Com (without extra commerce background)']
+      },
+      computer: {
+        recommended: ['B.Tech / B.E Computer Science','B.Sc Computer Science','BCA','B.Sc Information Technology','B.Sc Data Science','BBA (with IT)'],
+        restricted: ['MBBS / B.Sc Biology majors (without bridge)']
+      },
+      commerce: {
+        recommended: ['B.Com','B.Com CA/Accounting','BBA','B.Com Computer Applications','BMS','BBA Finance'],
+        restricted: ['Most pure science courses like B.Sc Zoology without extra PCB background']
+      },
+      maths: {
+        recommended: ['B.Sc Mathematics','B.Sc Physics (if PCM)','B.E/B.Tech (Engineering)','B.Sc Statistics','B.Sc Data Science','BCA'],
+        restricted: ['Pure biology-based medical courses without bridge']
+      },
+      arts: {
+        recommended: ['B.A Economics','B.A English','B.Sc Psychology','BBA','B.Com (if commerce subjects taken)'],
+        restricted: []
+      }
     }
 
-    let blocked = [];
-    if (stream === "computer-science") blocked.push("MBBS / Nursing");
-    if (stream === "commerce") blocked.push("Engineering", "MBBS / Nursing");
-    if (stream === "arts") blocked.push("Engineering", "MBBS / Nursing", "B.Com");
-
-    let allowed = ["Engineering", "MBBS / Nursing", "B.Com", "BA", "BBA", "BCA"];
-    allowed = allowed.filter(c => !blocked.includes(c));
-
-    eligibilityDiv.classList.remove("hidden");
-    eligibilityDiv.innerHTML = `
-        <h3>Eligibility Based on Your Stream:</h3>
-        <p><b>Allowed Courses:</b> ${allowed.join(", ")}</p>
-        <p><b>Not Eligible For:</b> ${blocked.length ? blocked.join(", ") : "None"}</p>
-        <p>The AI will now take you to the skill assessment quiz to further refine the career recommendation.</p>
-    `;
-
-    setTimeout(() => {
-        document.getElementById("step1").classList.add("hidden");
-        document.getElementById("step2").classList.remove("hidden");
-    }, 2000);
-}
-
-// Step 2: Recommendation logic
-function recommend() {
-    let answers = [
-        parseInt(document.getElementById("q1").value || 0),
-        parseInt(document.getElementById("q2").value || 0),
-        parseInt(document.getElementById("q3").value || 0),
-        parseInt(document.getElementById("q4").value || 0),
-        parseInt(document.getElementById("q5").value || 0)
-    ];
-
-    if (answers.includes(NaN)) {
-        alert("⚠️ Please answer all questions.");
-        return;
+    const onlineCourseSuggestions = {
+      'B.Sc Zoology': ['Intro to Biology (Coursera)','Basic Lab Safety & Methods (edX)'],
+      'B.Sc Botany': ['Plant Biology fundamentals (Coursera)','Ecology basics (NPTEL)'],
+      'B.Tech / B.E Computer Science': ['CS50 Introduction to CS (edX)','Python for Everybody (Coursera)'],
+      'BCA': ['Python basics','Intro to Databases (freeCodeCamp)'],
+      'B.Com': ['Accounting basics (Coursera)','Excel for Everyone (edX)'],
+      'BBA': ['Intro to Business Management (Coursera)','Finance Essentials (Edx)']
     }
 
-    let scores = {
-        engineering: answers[0] + answers[1] + answers[4],
-        medical: answers[2] + answers[1],
-        arts: answers[3] + answers[2],
-        business: answers[0] + answers[3]
-    };
+    // Sample college data (fees captured from public sources). These values are approximate and will change each year.
+    const collegesDB = {
+      kanyakumari: [
+        {name:'Scott Christian College, Nagercoil', courses:['B.Sc','B.Com','B.A'], fee:'Approx ₹675 - ₹1,935 (UG per year)', source:'Scott Christian College / CollegeDunia'},
+        {name:'Government Arts & Science College, Nagercoil', courses:['B.Sc','B.A','B.Com'], fee:'Govt college — low fees, see official fee PDF', source:'GASC Nagercoil official'}
+      ],
+      tirunelveli: [
+        {name:"St. Xavier's College, Tirunelveli", courses:['B.Sc','B.Com','B.A'], fee:'Refer college fee page (moderate)', source:'St.Xavier\'s college official'},
+        {name:'Government College of Engineering, Tirunelveli', courses:['B.E / B.Tech'], fee:'Engineering fees vary by branch; check college page', source:'GCE Tirunelveli / Careers360'}
+      ],
+      coimbatore: [
+        {name:'PSG College of Arts & Science, Coimbatore', courses:['B.Sc','B.A','B.Com'], fee:'Approx ₹11,000 - ₹1,87,000 depending on course', source:'PSG / Shiksha'},
+        {name:'Coimbatore Institute of Technology (CIT)', courses:['B.E/B.Tech','B.Sc'], fee:'Approx ₹98,000 - ₹8,18,000 (varies by program)', source:'CIT / CollegeDunia'},
+        {name:'Government Arts College (Autonomous), Coimbatore', courses:['B.Sc','B.A','B.Com'], fee:'Low govt fees ~₹3,000 - ₹4,100 (entire UG year ranges)', source:'GAC Coimbatore / CollegeDunia'}
+      ]
+    }
 
-    if (userStream === "computer-science") delete scores.medical;
-    if (userStream === "commerce") { delete scores.engineering; delete scores.medical; }
-    if (userStream === "arts") { delete scores.engineering; delete scores.medical; delete scores.business; }
+    // UI wiring
+    document.getElementById('nextToResults').onclick = ()=>{
+      const s = document.getElementById('stream').value
+      const city = document.getElementById('city').value
+      if(!s) { alert('Please choose your stream'); return }
+      pageQuestion.style.display='none'; pageResults.style.display='block'
+      renderResults(s, city)
+    }
 
-    let bestCourse = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
+    function renderResults(stream, city){
+      document.getElementById('selStream').textContent = stream
+      const data = streamToCourses[stream]
+      const recList = document.getElementById('recList'); recList.innerHTML=''
+      const chooseCourse = document.getElementById('chooseCourse'); chooseCourse.innerHTML='<option value="">-- pick course --</option>'
+      data.recommended.forEach(c=>{ const div=document.createElement('div'); div.className='chip'; div.textContent=c; recList.appendChild(div);
+        const opt = document.createElement('option'); opt.value=c; opt.text=c; chooseCourse.appendChild(opt);
+      })
+      const sug = document.getElementById('suggestions'); sug.innerHTML=''
+      sug.innerHTML = '<p>If unsure, consider: 1) Short online intro courses during 11th/12th; 2) Talk with a school counsellor; 3) Try a summer internship/online lab exercises to confirm interest.</p>'
 
-    let courseInfo = {
-        engineering: {
-            name: "B.Tech / BE (Engineering)",
-            jobs: "Software Engineer, Data Scientist, Mechanical Engineer, Civil Engineer",
-            salary: "₹4-12 LPA",
-            description: "Engineering develops problem-solving and technical skills. You'll design, build, and improve systems or products."
-        },
-        medical: {
-            name: "MBBS / Nursing (Medical Field)",
-            jobs: "Doctor, Surgeon, Nurse, Physiotherapist",
-            salary: "₹5-20 LPA",
-            description: "The medical field focuses on diagnosing, treating, and preventing illnesses. It requires compassion, patience, and scientific knowledge."
-        },
-        arts: {
-            name: "BA in Arts / Humanities",
-            jobs: "Journalist, Historian, Designer, Teacher",
-            salary: "₹2-6 LPA",
-            description: "Arts programs focus on creativity, critical thinking, and cultural understanding, preparing you for diverse career paths."
-        },
-        business: {
-            name: "BBA / B.Com (Business & Commerce)",
-            jobs: "Business Analyst, Accountant, Marketing Manager, Entrepreneur",
-            salary: "₹3-10 LPA",
-            description: "Business degrees teach management, finance, and marketing skills, opening doors to corporate and entrepreneurial careers."
-        }
-    };
+      // careers
+      const careers = document.getElementById('careers'); careers.innerHTML=''
+      const careersList = getCareersForStream(stream)
+      careersList.forEach(it=>{ const p=document.createElement('p'); p.textContent= '• '+it; careers.appendChild(p) })
 
-    document.getElementById("step2").classList.add("hidden");
-    document.getElementById("step3").classList.remove("hidden");
+      // online course suggestions
+      const oc = document.getElementById('onlineCourses'); oc.innerHTML=''
+      data.recommended.slice(0,6).forEach(c=>{
+        const listItem = document.createElement('li')
+        const arr = onlineCourseSuggestions[c] || ['Generic foundation course: Programming basics or Biology fundamentals depending on course']
+        listItem.textContent = c+ ' → ' + arr.join(' ; ')
+        oc.appendChild(listItem)
+      })
 
-    document.getElementById("output").innerHTML = `
-        <h3>🎯 Recommended Course:</h3>
-        <p><b>${courseInfo[bestCourse].name}</b></p>
-        <h4>💼 Possible Jobs:</h4>
-        <p>${courseInfo[bestCourse].jobs}</p>
-        <h4>💰 Salary Range:</h4>
-        <p>${courseInfo[bestCourse].salary}</p>
-        <h4>📖 About This Path:</h4>
-        <p>${courseInfo[bestCourse].description}</p>
-        <p><b>Why This Recommendation?</b> Based on your interests and the eligibility from your higher secondary stream, this course is the best fit for you.</p>
-    `;
-}
+      // colleges
+      const cols = document.getElementById('colleges'); cols.innerHTML=''
+      (collegesDB[city]||[]).forEach(cl=>{
+        const div = document.createElement('div'); div.className='college'
+        div.innerHTML = `<strong>${cl.name}</strong><div>Courses: ${cl.courses.join(', ')}</div><div>Fees: ${cl.fee}</div><div style="font-size:12px;color:#666">Data source: ${cl.source}</div>`
+        cols.appendChild(div)
+      })
 
-function restart() {
-    document.getElementById("step3").classList.add("hidden");
-    document.getElementById("step1").classList.remove("hidden");
-    document.getElementById("stream").value = "";
-}
-</script>
+      // tailored
+      document.getElementById('tailored').innerHTML=''
+      document.getElementById('chooseCourse').onchange = function(){ showTailored(this.value) }
+    }
+
+    function showTailored(course){
+      const el = document.getElementById('tailored'); el.innerHTML=''
+      if(!course) return
+      const list = onlineCourseSuggestions[course] || ['No specific online list available — consider foundational courses in that field (Python for CS, Basic Biology for life sciences, Basic Accounting for commerce).']
+      const h = document.createElement('h4'); h.textContent = 'Suggested micro-courses to complete during 11th/12th:'; el.appendChild(h)
+      const ul = document.createElement('ul'); list.forEach(x=>{ const li=document.createElement('li'); li.textContent=x; ul.appendChild(li) }); el.appendChild(ul)
+    }
+
+    function getCareersForStream(stream){
+      switch(stream){
+        case 'biology': return ['Research assistant / lab technician','Clinical / healthcare roles (with further qualification)','Biotech / Pharma jobs (after degree)','Teaching / Academia','Agriculture & environmental roles']
+        case 'computer': return ['Software developer','Data analyst / Data scientist (after BSc/BTech)','System admin / DevOps','IT consulting','Higher studies: MSc/ME or integrated programs']
+        case 'commerce': return ['Accountant / Auditor','Banking / Finance roles','Business analyst / Management','Company secretary / Chartered Accountant (further study)','Entrepreneurship']
+        case 'maths': return ['Actuarial trainee','Statistician / Data analyst','Research / Teaching','Engineering roles (if engineering chosen)','Quantitative finance roles (after higher studies)']
+        default: return ['Multiple options depending on chosen course — consult a counselor for precise fit']
+      }
+    }
+
+    document.getElementById('restart').onclick = ()=>{ pageFinal.style.display='none'; pageHome.style.display='block'; }
+
+    // small usability: let user finish
+  </script>
 </body>
 </html>
